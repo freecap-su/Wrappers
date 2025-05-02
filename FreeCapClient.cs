@@ -25,17 +25,16 @@ namespace FreeCap
 
     public class FreeCapClient
     {
-        private readonly string _apiKey;
         private readonly string _apiUrl;
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
 
         public FreeCapClient(string apiKey, string apiUrl = "https://freecap.app", ILogger logger = null)
         {
-            _apiKey = apiKey;
             _apiUrl = apiUrl.TrimEnd('/');
             _httpClient = new HttpClient();
             _logger = logger ?? new ConsoleLogger();
+            _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("X-API-Key",  apiKey)
         }
 
         public async Task<Dictionary<string, object>> CreateTaskAsync(
@@ -44,12 +43,11 @@ namespace FreeCap
         {
             var taskData = new Dictionary<string, object>
             {
-                ["freecap_key"] = _apiKey,
-                ["captcha_type"] = captchaType,
+                ["captchaType"] = captchaType,
                 ["payload"] = new Dictionary<string, string>
                 {
-                    ["sitekey"] = task.Sitekey,
-                    ["siteurl"] = task.Siteurl
+                    ["websiteURL"] = task.Sitekey,
+                    ["websiteKey"] = task.Siteurl
                 }
             };
 
@@ -72,7 +70,7 @@ namespace FreeCap
                 Encoding.UTF8,
                 "application/json");
 
-            var response = await _httpClient.PostAsync($"{_apiUrl}/create_task", content);
+            var response = await _httpClient.PostAsync($"{_apiUrl}/CreateTask", content);
             response.EnsureSuccessStatusCode();
 
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -80,7 +78,7 @@ namespace FreeCap
                 responseContent,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            if (!(bool)result["success"] || !result.ContainsKey("task_id"))
+            if (!(bool)result["status"] || !result.ContainsKey("taskId"))
             {
                 throw new Exception($"Error creating task: {responseContent}");
             }
@@ -92,8 +90,7 @@ namespace FreeCap
         {
             var requestData = new Dictionary<string, string>
             {
-                ["freecap_key"] = _apiKey,
-                ["task_id"] = taskId
+                ["taskId"] = taskId
             };
 
             var content = new StringContent(
@@ -101,7 +98,7 @@ namespace FreeCap
                 Encoding.UTF8,
                 "application/json");
 
-            var response = await _httpClient.PostAsync($"{_apiUrl}/get_task", content);
+            var response = await _httpClient.PostAsync($"{_apiUrl}/GetTask", content);
             response.EnsureSuccessStatusCode();
 
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -129,14 +126,14 @@ namespace FreeCap
 
                 var result = await GetResultAsync(taskId);
 
-                if (result["status"].ToString() == "solved")
+                if (result["status"].ToString() == "Solved")
                 {
                     _logger.Info($"Task {taskId} solved successfully");
-                    return result["captcha_token"].ToString();
+                    return result["solution"].ToString();
                 }
-                else if (result["status"].ToString() == "error")
+                else if (result["status"].ToString() == "Error")
                 {
-                    throw new Exception($"Task {taskId} failed: {result.ContainsKey("error") ? result["error"] : "Unknown error"}");
+                    throw new Exception($"Task {taskId} failed: {result.ContainsKey("Error") ? result["Error"] : "Unknown error"}");
                 }
 
                 await Task.Delay(checkInterval * 1000);
