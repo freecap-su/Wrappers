@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -17,134 +18,120 @@ type CaptchaTask struct {
 	Rqdata  string
 }
 
+type ILogger interface {
+	Info(message string)
+}
+
+type ConsoleLogger struct{}
+
+func (l *ConsoleLogger) Info(message string) {
+	fmt.Printf("[INFO] %s\n", message)
+}
+
+type TaskResult struct {
+	Status string `json:"status"`
+	TaskID string `json:"taskId"`
+}
+
+type SolutionResult struct {
+	Status   string `json:"status"`
+	Solution string `json:"solution"`
+	Error    string `json:"Error"`
+}
+
 type FreeCapClient struct {
-	ApiKey  string
-	ApiUrl  string
-	Logger  Logger
+	apiURL  string
+	apiKey  string
+	logger  ILogger
+	client  *http.Client
 }
 
-type Logger interface {
-	Info(msg string, args ...interface{})
-	Error(msg string, args ...interface{})
-}
-
-type DefaultLogger struct{}
-
-func (l *DefaultLogger) Info(msg string, args ...interface{}) {
-	fmt.Printf("[INFO] "+msg+"\n", args...)
-}
-
-func (l *DefaultLogger) Error(msg string, args ...interface{}) {
-	fmt.Printf("[ERROR] "+msg+"\n", args...)
-}
-
-func NewFreeCapClient(apiKey string, apiUrl string) *FreeCapClient {
-	if apiUrl == "" {
-		apiUrl = "https://freecap.app"
+func NewFreeCapClient(apiKey string, apiURL string, logger ILogger) *FreeCapClient {
+	if apiURL == "" {
+		apiURL = "https://freecap.app"
 	}
 	
-	apiUrl = strings.TrimSuffix(apiUrl, "/")
+	apiURL = strings.TrimRight(apiURL, "/")
+	
+	if logger == nil {
+		logger = &ConsoleLogger{}
+	}
 	
 	return &FreeCapClient{
-		ApiKey:  apiKey,
-		ApiUrl:  apiUrl,
-		Logger:  &DefaultLogger{},
+		apiURL:  apiURL,
+		apiKey:  apiKey,
+		logger:  logger,
+		client:  &http.Client{},
 	}
 }
 
-func (c *FreeCapClient) SetLogger(logger Logger) {
-	c.Logger = logger
-}
-
-type CreateTaskRequest struct {
-	FreecapKey  string      `json:"freecap_key"`
-	CaptchaType string      `json:"captcha_type"`
-	Payload     TaskPayload `json:"payload"`
-}
-
-type TaskPayload struct {
-	Sitekey string `json:"sitekey"`
-	Siteurl string `json:"siteurl"`
-	Proxy   string `json:"proxy,omitempty"`
-	Rqdata  string `json:"rqdata,omitempty"`
-}
-
-type CreateTaskResponse struct {
-	Success bool   `json:"success"`
-	TaskID  string `json:"task_id"`
-	Error   string `json:"error"`
-}
-
-type GetTaskRequest struct {
-	FreecapKey string `json:"freecap_key"`
-	TaskID     string `json:"task_id"`
-}
-
-type GetTaskResponse struct {
-	Status       string `json:"status"`
-	CaptchaToken string `json:"captcha_token"`
-	Error        string `json:"error"`
-}
-
-func (c *FreeCapClient) CreateTask(task CaptchaTask, captchaType string) (*CreateTaskResponse, error) {
+func (fc *FreeCapClient) CreateTask(task CaptchaTask, captchaType string) (*TaskResult, error) {
 	if captchaType == "" {
 		captchaType = "hcaptcha"
 	}
 	
-	taskData := CreateTaskRequest{
-		FreecapKey:  c.ApiKey,
-		CaptchaType: captchaType,
-		Payload: TaskPayload{
-			Sitekey: task.Sitekey,
-			Siteurl: task.Siteurl,
+	taskData := map[string]interface{}{
+		"captchaType": captchaType,
+		"payload": map[string]interface{}{
+			"websiteURL": task.Siteurl,
+			"websiteKey": task.Sitekey,
 		},
 	}
 	
+	payload := taskData["payload"].(map[string]interface{})
 	if task.Proxy != "" {
-		taskData.Payload.Proxy = task.Proxy
+		payload["proxy"] = task.Proxy
 	}
 	
 	if task.Rqdata != "" && captchaType == "hcaptcha" {
-		taskData.Payload.Rqdata = task.Rqdata
+		payload["rqdata"] = task.Rqdata
 	}
 	
-	c.Logger.Info("Creating %s task for site: %s", captchaType, task.Siteurl)
+	fc.logger.Info(fmt.Sprintf("Creating %s task for site: %s", captchaType, task.Siteurl))
 	
 	jsonData, err := json.Marshal(taskData)
 	if err != nil {
 		return nil, err
 	}
 	
-	resp, err := http.Post(
-		fmt.Sprintf("%s/create_task", c.ApiUrl),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
+	req, err := http.NewRequest("POST", fc.apiURL+"/CreateTask", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", fc.apiKey)
+	
+	resp, err := fc.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
-	}
-	
-	var result CreateTaskResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
 	
-	if !result.Success || result.TaskID == "" {
-		return nil, fmt.Errorf("error creating task: %s", result.Error)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(body))
+	}
+	
+	var result TaskResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+	
+	if result.Status == "" || result.TaskID == "" {
+		return nil, fmt.Errorf("Error creating task: %s", string(body))
 	}
 	
 	return &result, nil
 }
 
-func (c *FreeCapClient) GetResult(taskID string) (*GetTaskResponse, error) {
-	requestData := GetTaskRequest{
-		FreecapKey: c.ApiKey,
-		TaskID:     taskID,
+func (fc *FreeCapClient) GetResult(taskID string) (*SolutionResult, error) {
+	requestData := map[string]string{
+		"taskId": taskID,
 	}
 	
 	jsonData, err := json.Marshal(requestData)
@@ -152,29 +139,38 @@ func (c *FreeCapClient) GetResult(taskID string) (*GetTaskResponse, error) {
 		return nil, err
 	}
 	
-	resp, err := http.Post(
-		fmt.Sprintf("%s/get_task", c.ApiUrl),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
+	req, err := http.NewRequest("POST", fc.apiURL+"/GetTask", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", fc.apiKey)
+	
+	resp, err := fc.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
 	}
 	
-	var result GetTaskResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(body))
+	}
+	
+	var result SolutionResult
+	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, err
 	}
 	
 	return &result, nil
 }
 
-func (c *FreeCapClient) SolveCaptcha(task CaptchaTask, captchaType string, timeout int, checkInterval int) (string, error) {
+func (fc *FreeCapClient) SolveCaptcha(task CaptchaTask, captchaType string, timeout int, checkInterval int) (string, error) {
 	if captchaType == "" {
 		captchaType = "hcaptcha"
 	}
@@ -187,33 +183,36 @@ func (c *FreeCapClient) SolveCaptcha(task CaptchaTask, captchaType string, timeo
 		checkInterval = 3
 	}
 	
-	taskResult, err := c.CreateTask(task, captchaType)
+	taskResult, err := fc.CreateTask(task, captchaType)
 	if err != nil {
 		return "", err
 	}
 	
 	taskID := taskResult.TaskID
-	startTime := time.Now()
+	if taskID == "" {
+		return "", fmt.Errorf("Invalid task result: %v", taskResult)
+	}
 	
+	startTime := time.Now()
 	for {
 		if time.Since(startTime).Seconds() > float64(timeout) {
-			return "", fmt.Errorf("task %s timed out after %d seconds", taskID, timeout)
+			return "", fmt.Errorf("Task %s timed out after %d seconds", taskID, timeout)
 		}
 		
-		result, err := c.GetResult(taskID)
+		result, err := fc.GetResult(taskID)
 		if err != nil {
 			return "", err
 		}
 		
-		if result.Status == "solved" {
-			c.Logger.Info("Task %s solved successfully", taskID)
-			return result.CaptchaToken, nil
-		} else if result.Status == "error" {
-			errMsg := result.Error
-			if errMsg == "" {
-				errMsg = "Unknown error"
+		if result.Status == "Solved" {
+			fc.logger.Info(fmt.Sprintf("Task %s solved successfully", taskID))
+			return result.Solution, nil
+		} else if result.Status == "Error" {
+			errorMessage := "Unknown error"
+			if result.Error != "" {
+				errorMessage = result.Error
 			}
-			return "", errors.New(fmt.Sprintf("Task %s failed: %s", taskID, errMsg))
+			return "", fmt.Errorf("Task %s failed: %s", taskID, errorMessage)
 		}
 		
 		time.Sleep(time.Duration(checkInterval) * time.Second)
