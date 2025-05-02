@@ -1,9 +1,9 @@
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+use reqwest::{Client, header};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
-use thiserror::Error;
+use tokio::time;
+use anyhow::{Result, anyhow};
 
-#[derive(Debug, Clone)]
 pub struct CaptchaTask {
     pub sitekey: String,
     pub siteurl: String,
@@ -11,164 +11,217 @@ pub struct CaptchaTask {
     pub rqdata: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+pub trait ILogger {
+    fn info(&self, message: &str);
+}
+
+pub struct ConsoleLogger;
+
+impl ILogger for ConsoleLogger {
+    fn info(&self, message: &str) {
+        println!("[INFO] {}", message);
+    }
+}
+
+#[derive(Serialize)]
 struct TaskPayload {
-    sitekey: String,
-    siteurl: String,
+    websiteURL: String,
+    websiteKey: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     proxy: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     rqdata: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 struct CreateTaskRequest {
-    freecap_key: String,
-    captcha_type: String,
+    captchaType: String,
     payload: TaskPayload,
 }
 
-#[derive(Debug, Serialize)]
-struct GetTaskRequest {
-    freecap_key: String,
-    task_id: String,
-}
-
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize, Debug)]
 struct CreateTaskResponse {
-    success: bool,
-    task_id: Option<String>,
-    error: Option<String>,
+    status: Option<bool>,
+    taskId: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Serialize)]
+struct GetTaskRequest {
+    taskId: String,
+}
+
+#[derive(Deserialize, Debug)]
 struct GetTaskResponse {
     status: String,
-    captcha_token: Option<String>,
+    solution: Option<String>,
+    #[serde(rename = "Error")]
     error: Option<String>,
-}
-
-#[derive(Debug, Error)]
-pub enum FreecapError {
-    #[error("API error: {0}")]
-    ApiError(String),
-    
-    #[error("Request error: {0}")]
-    RequestError(#[from] reqwest::Error),
-    
-    #[error("Task timed out after {0} seconds")]
-    Timeout(u64),
 }
 
 pub struct FreeCapClient {
-    api_key: String,
     api_url: String,
-    client: reqwest::Client,
+    client: Client,
+    logger: Box<dyn ILogger>,
 }
 
 impl FreeCapClient {
-    pub fn new(api_key: String, api_url: Option<String>) -> Self {
+    pub fn new(api_key: &str, api_url: Option<&str>, logger: Option<Box<dyn ILogger>>) -> Result<Self> {
+        let mut headers = header::HeaderMap::new();
+        headers.insert(
+            "X-API-Key",
+            header::HeaderValue::from_str(api_key)
+                .map_err(|e| anyhow!("Invalid API key: {}", e))?,
+        );
+
+        let client = Client::builder()
+            .default_headers(headers)
+            .build()
+            .map_err(|e| anyhow!("Failed to create HTTP client: {}", e))?;
+
         let api_url = match api_url {
             Some(url) => url.trim_end_matches('/').to_string(),
             None => "https://freecap.app".to_string(),
         };
-        
-        let client = reqwest::Client::new();
-        
-        Self {
-            api_key,
+
+        let logger = logger.unwrap_or_else(|| Box::new(ConsoleLogger));
+
+        Ok(Self {
             api_url,
             client,
-        }
+            logger,
+        })
     }
-    
-    pub async fn create_task(
-        &self,
-        task: &CaptchaTask,
-        captcha_type: &str,
-    ) -> Result<String, FreecapError> {
-        let mut payload = TaskPayload {
-            sitekey: task.sitekey.clone(),
-            siteurl: task.siteurl.clone(),
-            proxy: None,
-            rqdata: None,
+
+    pub async fn create_task_async(&self, task: &CaptchaTask, captcha_type: &str) -> Result<CreateTaskResponse> {
+        let proxy = if task.proxy.is_empty() {
+            None
+        } else {
+            Some(task.proxy.clone())
         };
-        
-        if !task.proxy.is_empty() {
-            payload.proxy = Some(task.proxy.clone());
-        }
-        
-        if captcha_type == "hcaptcha" && task.rqdata.is_some() {
-            payload.rqdata = task.rqdata.clone();
-        }
-        
-        let request_data = CreateTaskRequest {
-            freecap_key: self.api_key.clone(),
-            captcha_type: captcha_type.to_string(),
-            payload,
+
+        let rqdata = if captcha_type == "hcaptcha" {
+            task.rqdata.clone()
+        } else {
+            None
         };
-        
-        let response = self.client
-            .post(format!("{}/create_task", self.api_url))
-            .json(&request_data)
+
+        let task_data = CreateTaskRequest {
+            captchaType: captcha_type.to_string(),
+            payload: TaskPayload {
+                websiteURL: task.siteurl.clone(),
+                websiteKey: task.sitekey.clone(),
+                proxy,
+                rqdata,
+            },
+        };
+
+        self.logger.info(&format!(
+            "Creating {} task for site: {}",
+            captcha_type, task.siteurl
+        ));
+
+        let response = self
+            .client
+            .post(&format!("{}/CreateTask", self.api_url))
+            .json(&task_data)
             .send()
-            .await?;
-            
-        let result: CreateTaskResponse = response.json().await?;
-        
-        if !result.success || result.task_id.is_none() {
-            return Err(FreecapError::ApiError(
-                result.error.unwrap_or_else(|| "Unknown error".to_string())
+            .await
+            .map_err(|e| anyhow!("HTTP request failed: {}", e))?;
+
+        if !response.status().is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Failed to get error text".to_string());
+            return Err(anyhow!(
+                "HTTP error {}: {}",
+                response.status(),
+                error_text
             ));
         }
-        
-        Ok(result.task_id.unwrap())
-    }
-    
-    pub async fn get_result(&self, task_id: &str) -> Result<GetTaskResponse, FreecapError> {
-        let request_data = GetTaskRequest {
-            freecap_key: self.api_key.clone(),
-            task_id: task_id.to_string(),
-        };
-        
-        let response = self.client
-            .post(format!("{}/get_task", self.api_url))
-            .json(&request_data)
-            .send()
-            .await?;
-            
-        let result: GetTaskResponse = response.json().await?;
+
+        let result: CreateTaskResponse = response
+            .json()
+            .await
+            .map_err(|e| anyhow!("Failed to parse response: {}", e))?;
+
+        if result.status.is_none() || result.taskId.is_none() {
+            return Err(anyhow!("Error creating task: Invalid response format"));
+        }
+
         Ok(result)
     }
-    
-    pub async fn solve_captcha(
+
+    pub async fn get_result_async(&self, task_id: &str) -> Result<GetTaskResponse> {
+        let request_data = GetTaskRequest {
+            taskId: task_id.to_string(),
+        };
+
+        let response = self
+            .client
+            .post(&format!("{}/GetTask", self.api_url))
+            .json(&request_data)
+            .send()
+            .await
+            .map_err(|e| anyhow!("HTTP request failed: {}", e))?;
+
+        if !response.status().is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Failed to get error text".to_string());
+            return Err(anyhow!(
+                "HTTP error {}: {}",
+                response.status(),
+                error_text
+            ));
+        }
+
+        let result: GetTaskResponse = response
+            .json()
+            .await
+            .map_err(|e| anyhow!("Failed to parse response: {}", e))?;
+
+        Ok(result)
+    }
+
+    pub async fn solve_captcha_async(
         &self,
         task: &CaptchaTask,
         captcha_type: &str,
         timeout: u64,
         check_interval: u64,
-    ) -> Result<String, FreecapError> {
-        let task_id = self.create_task(task, captcha_type).await?;
-        
+    ) -> Result<String> {
+        let task_result = self.create_task_async(task, captcha_type).await?;
+        let task_id = task_result
+            .taskId
+            .ok_or_else(|| anyhow!("Invalid task result: task ID is missing"))?;
+
         let start_time = Instant::now();
         loop {
             if start_time.elapsed() > Duration::from_secs(timeout) {
-                return Err(FreecapError::Timeout(timeout));
+                return Err(anyhow!(
+                    "Task {} timed out after {} seconds",
+                    task_id,
+                    timeout
+                ));
             }
-            
-            let result = self.get_result(&task_id).await?;
-            
+
+            let result = self.get_result_async(&task_id).await?;
+
             match result.status.as_str() {
-                "solved" => {
-                    return Ok(result.captcha_token.unwrap_or_default());
+                "Solved" => {
+                    self.logger.info(&format!("Task {} solved successfully", task_id));
+                    return Ok(result
+                        .solution
+                        .ok_or_else(|| anyhow!("Solution missing from solved task"))?);
                 }
-                "error" => {
-                    return Err(FreecapError::ApiError(
-                        result.error.unwrap_or_else(|| "Unknown error".to_string())
-                    ));
+                "Error" => {
+                    let error_message = result.error.unwrap_or_else(|| "Unknown error".to_string());
+                    return Err(anyhow!("Task {} failed: {}", task_id, error_message));
                 }
                 _ => {
-                    tokio::time::sleep(Duration::from_secs(check_interval)).await;
+                    time::sleep(Duration::from_secs(check_interval)).await;
                 }
             }
         }
