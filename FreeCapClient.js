@@ -199,7 +199,7 @@ class NullLogger extends ILogger {
  */
 class ClientConfig {
     constructor(options = {}) {
-        this.apiUrl = options.apiUrl || "https://freecap.app";
+        this.apiUrl = options.apiUrl || "https://freecap.su";
         this.requestTimeout = options.requestTimeout || 30000;
         this.maxRetries = options.maxRetries || 3;
         this.retryDelay = options.retryDelay || 1000;
