@@ -182,7 +182,7 @@ class NullLogger(ILogger):
 @dataclass
 class ClientConfig:
     """Client configuration options."""
-    api_url: str = "https://freecap.app"
+    api_url: str = "https://freecap.su"
     request_timeout: int = 30
     max_retries: int = 3
     retry_delay: float = 1.0
