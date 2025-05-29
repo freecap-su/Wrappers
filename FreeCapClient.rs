@@ -247,7 +247,7 @@ pub struct ClientConfig {
 impl Default for ClientConfig {
     fn default() -> Self {
         Self {
-            api_url: "https://freecap.app".to_string(),
+            api_url: "https://freecap.su".to_string(),
             request_timeout: Duration::from_secs(30),
             max_retries: 3,
             retry_delay: Duration::from_secs(1),
