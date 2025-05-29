@@ -198,7 +198,7 @@ type ClientConfig struct {
 // NewClientConfig creates a default client configuration
 func NewClientConfig() *ClientConfig {
 	return &ClientConfig{
-		APIURL:               "https://freecap.app",
+		APIURL:               "https://freecap.su",
 		RequestTimeout:       30 * time.Second,
 		MaxRetries:           3,
 		RetryDelay:           1 * time.Second,
