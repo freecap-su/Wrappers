@@ -172,7 +172,7 @@ namespace FreeCapClient
     /// </summary>
     public class ClientConfig
     {
-        public string ApiUrl { get; set; } = "https://freecap.app";
+        public string ApiUrl { get; set; } = "https://freecap.su";
         public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(30);
         public int MaxRetries { get; set; } = 3;
         public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(1);
