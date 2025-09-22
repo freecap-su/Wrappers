@@ -234,7 +234,7 @@ class FreeCapClient {
         
         this._baseUrl = this._config.baseUrl.replace(/\/$/, '');
         this._headers = {
-            "X-API-Key": this._apiKey,
+            "FreeCap-Key": this._apiKey,
             "Content-Type": "application/json",
             "User-Agent": this._config.userAgent,
             "Accept": "application/json"
