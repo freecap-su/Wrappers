@@ -77,7 +77,8 @@ public static class EnumExtensions
             FunCaptchaPreset.RobloxLogin => "roblox_login",
             FunCaptchaPreset.RobloxFollow => "roblox_follow",
             FunCaptchaPreset.RobloxGroup => "roblox_group",
-            FunCaptchaPreset.DropboxLogin => "dropbox_login",
+            FunCaptchaPreset.RobloxRegister => "roblox_register",
+            FunCaptchaPreset.GithubRegister => "github_register",
             _ => throw new ArgumentOutOfRangeException(nameof(preset), preset, null)
         };
     }
