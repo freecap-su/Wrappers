@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "freecap-client"
-version = "1.0.1"
+version = "1.0.2"
 authors = [
     {name = "FreeCap Client", email = "support@freecap.su"},
 ]
