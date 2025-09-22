@@ -80,7 +80,7 @@ async function exampleFunCaptcha() {
         const solution = await solveFunCaptcha(
             "your-api-key-here",
             FunCaptchaPreset.ROBLOX_LOGIN,
-            "137", // Chrome version
+            "140", // Chrome version
             "your-blob-data-here",
             null, // No proxy
             180   // 3 minute timeout
