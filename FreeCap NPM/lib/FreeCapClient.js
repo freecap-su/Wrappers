@@ -19,8 +19,7 @@ const CaptchaType = Object.freeze({
     CAPTCHAFOX: "captchafox",
     GEETEST: "geetest",
     DISCORD_ID: "discordid",
-    FUNCAPTCHA: "funcaptcha",
-    AURO_NETWORK: "auronetwork"
+    FUNCAPTCHA: "funcaptcha"
 });
 
 /**
@@ -51,7 +50,8 @@ const FunCaptchaPreset = Object.freeze({
     ROBLOX_LOGIN: "roblox_login",
     ROBLOX_FOLLOW: "roblox_follow",
     ROBLOX_GROUP: "roblox_group",
-    DROPBOX_LOGIN: "dropbox_login"
+    ROBLOX_REGISTER = "roblox_register",
+    GITHUB_REGISTER = "github_register"
 });
 
 /**
@@ -204,7 +204,7 @@ class ClientConfig {
         this.retryDelay = options.retryDelay || 1000;
         this.defaultTaskTimeout = options.defaultTaskTimeout || 120;
         this.defaultCheckInterval = options.defaultCheckInterval || 3;
-        this.userAgent = options.userAgent || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
+        this.userAgent = options.userAgent || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
     }
 }
 
@@ -284,8 +284,8 @@ class FreeCapClient {
             }
             // More flexible chrome version validation
             const chromeVersion = parseInt(task.chrome_version);
-            if (isNaN(chromeVersion) || chromeVersion < 100 || chromeVersion > 200) {
-                throw new FreeCapValidationException("chrome_version must be a valid Chrome version number (e.g., 136, 137)");
+            if (isNaN(chromeVersion) || chromeVersion < 140 || chromeVersion > 200) {
+                throw new FreeCapValidationException("chrome_version must be a valid Chrome version number (e.g., 140)");
             }
         }
     }
@@ -329,8 +329,6 @@ class FreeCapClient {
                 chrome_version: task.chrome_version,
                 blob: task.blob
             };
-        } else if (captchaType === CaptchaType.AURO_NETWORK) {
-            payloadData = {};
         }
         
         if (task.proxy) {
@@ -618,8 +616,8 @@ async function solveHCaptcha(apiKey, sitekey, siteurl, rqdata, groqApiKey, proxy
  * Convenience function to solve FunCaptcha
  * @param {string} apiKey - FreeCap API key
  * @param {string} preset - FunCaptcha preset
- * @param {string} [chromeVersion="137"] - Chrome version (136 or 137)
- * @param {string} [blob="undefined"] - Blob parameter (required for Roblox presets)
+ * @param {string} [chromeVersion="140"] - Chrome version
+ * @param {string} [blob="undefined"] - Blob parameter (required for Roblox, Github presets)
  * @param {string} [proxy] - Proxy string (optional)
  * @param {number} [timeout=120] - Timeout in seconds
  * @returns {Promise<string>} Captcha solution
