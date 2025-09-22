@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "freecap-client"
-version = "1.0.0"
+version = "1.0.1"
 authors = [
     {name = "FreeCap Client", email = "support@freecap.su"},
 ]
@@ -27,16 +27,16 @@ classifiers = [
 ]
 keywords = ["captcha", "hcaptcha", "funcaptcha", "geetest", "automation", "async", "api-client"]
 dependencies = [
-    "aiohttp>=3.12.7",
+    "aiohttp>=3.12.15",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.4.0",
-    "pytest-asyncio>=1.0.0",
-    "black>=25.1.0",
-    "flake8>=7.2.0",
-    "mypy>=1.16.0",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "black>=25.9.0",
+    "flake8>=7.3.0",
+    "mypy>=1.18.2",
 ]
 
 [project.urls]
