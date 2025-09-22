@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="freecap-client",
-    version="1.0.0",
+    version="1.0.2",
     author="FreeCap Client",
     author_email="support@freecap.su",
     description="A robust, production-ready async client for the FreeCap captcha solving service",
