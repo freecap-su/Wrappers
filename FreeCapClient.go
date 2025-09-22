@@ -32,7 +32,6 @@ const (
 	Geetest      CaptchaType = "geetest"
 	DiscordID    CaptchaType = "discordid"
 	FunCaptcha   CaptchaType = "funcaptcha"
-	AuroNetwork  CaptchaType = "auronetwork"
 )
 
 // TaskStatus represents task status values
@@ -60,11 +59,11 @@ const (
 type FunCaptchaPreset string
 
 const (
-	SnapchatLogin FunCaptchaPreset = "snapchat_login"
 	RobloxLogin   FunCaptchaPreset = "roblox_login"
 	RobloxFollow  FunCaptchaPreset = "roblox_follow"
 	RobloxGroup   FunCaptchaPreset = "roblox_group"
-	DropboxLogin  FunCaptchaPreset = "dropbox_login"
+	RobloxRegister  FunCaptchaPreset = "roblox_register"
+	GithubRegister  FunCaptchaPreset = "github_register"
 )
 
 // CaptchaTask represents captcha task configuration
@@ -91,7 +90,7 @@ type CaptchaTask struct {
 // NewCaptchaTask creates a new CaptchaTask with default values
 func NewCaptchaTask() *CaptchaTask {
 	return &CaptchaTask{
-		ChromeVersion: "137",
+		ChromeVersion: "140",
 		Blob:          "undefined",
 		RiskType:      Slide,
 	}
@@ -204,7 +203,7 @@ func NewClientConfig() *ClientConfig {
 		RetryDelay:           1 * time.Second,
 		DefaultTaskTimeout:   120 * time.Second,
 		DefaultCheckInterval: 3 * time.Second,
-		UserAgent:            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+		UserAgent:            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
 	}
 }
 
@@ -284,9 +283,6 @@ func (c *FreeCapClient) validateTask(task *CaptchaTask, captchaType CaptchaType)
 		if task.Preset == "" {
 			return NewFreeCapValidationError("preset is required for FunCaptcha")
 		}
-		if task.ChromeVersion != "136" && task.ChromeVersion != "137" {
-			return NewFreeCapValidationError("chrome_version must be 136 or 137 for FunCaptcha")
-		}
 	}
 	return nil
 }
@@ -322,9 +318,6 @@ func (c *FreeCapClient) buildPayload(task *CaptchaTask, captchaType CaptchaType)
 		payloadData["preset"] = string(task.Preset)
 		payloadData["chrome_version"] = task.ChromeVersion
 		payloadData["blob"] = task.Blob
-	case AuroNetwork:
-		// No specific fields required
-	}
 
 	if task.Proxy != "" {
 		payloadData["proxy"] = task.Proxy
@@ -362,7 +355,7 @@ func (c *FreeCapClient) makeRequest(ctx context.Context, method, endpoint string
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
 
-		req.Header.Set("X-API-Key", c.apiKey)
+		req.Header.Set("FreeCap-Key", c.apiKey)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("User-Agent", c.config.UserAgent)
 		req.Header.Set("Accept", "application/json")
@@ -638,7 +631,7 @@ func SolveFunCaptcha(ctx context.Context, apiKey string, preset FunCaptchaPreset
 	defer client.Close()
 
 	if chromeVersion == "" {
-		chromeVersion = "137"
+		chromeVersion = "140"
 	}
 	if blob == "" {
 		blob = "undefined"
@@ -706,3 +699,4 @@ func main() {
 
 	log.Printf("✅ hCaptcha solved: %s", solution)
 }
+
