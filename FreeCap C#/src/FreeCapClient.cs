@@ -65,7 +65,7 @@ public class FreeCapClient : IDisposable, IAsyncDisposable
         
         _httpClient.Timeout = _config.RequestTimeout;
         _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.Add("X-API-Key", _apiKey);
+        _httpClient.DefaultRequestHeaders.Add("FreeCap-Key", _apiKey);
         _httpClient.DefaultRequestHeaders.Add("User-Agent", _config.UserAgent);
         _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
     }
