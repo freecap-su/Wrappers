@@ -113,8 +113,6 @@ public class FreeCapClient : IDisposable, IAsyncDisposable
             case CaptchaType.FunCaptcha:
                 if (!task.Preset.HasValue)
                     throw new FreeCapValidationException("preset is required for FunCaptcha");
-                if (task.ChromeVersion != "136" && task.ChromeVersion != "137")
-                    throw new FreeCapValidationException("chrome_version must be 136 or 137 for FunCaptcha");
                 break;
 
             case CaptchaType.AuroNetwork:
