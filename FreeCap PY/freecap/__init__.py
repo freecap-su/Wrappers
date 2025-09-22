@@ -5,7 +5,7 @@ A robust, production-ready async client for the FreeCap captcha solving service.
 Supports all captcha types including hCaptcha, FunCaptcha, Geetest, and more.
 
 Author: FreeCap Client
-Version: 1.0.1
+Version: 1.0.2
 License: GPLv3
 """
 
