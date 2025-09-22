@@ -5,7 +5,7 @@ A robust, production-ready async client for the FreeCap captcha solving service.
 Supports all captcha types including hCaptcha, FunCaptcha, Geetest, and more.
 
 Author: FreeCap Client
-Version: 1.0.0
+Version: 1.0.1
 License: GPLv3
 """
 
@@ -29,7 +29,6 @@ class CaptchaType(Enum):
     GEETEST = "geetest"
     DISCORD_ID = "discordid"
     FUNCAPTCHA = "funcaptcha"
-    AURO_NETWORK = "auronetwork"
 
 
 class TaskStatus(Enum):
@@ -54,7 +53,8 @@ class FunCaptchaPreset(Enum):
     ROBLOX_LOGIN = "roblox_login"
     ROBLOX_FOLLOW = "roblox_follow"
     ROBLOX_GROUP = "roblox_group"
-    DROPBOX_LOGIN = "dropbox_login"
+    ROBLOX_REGISTER = "roblox_register"
+    GITHUB_REGISTER = "github_register"
 
 
 @dataclass
@@ -68,7 +68,6 @@ class CaptchaTask:
     - Geetest: challenge, risk_type
     - Discord ID: sitekey, siteurl
     - FunCaptcha: preset, chrome_version, blob
-    - Auro Network: no specific fields required
     """
     sitekey: Optional[str] = None
     siteurl: Optional[str] = None
@@ -81,7 +80,7 @@ class CaptchaTask:
     risk_type: Optional[Union[str, RiskType]] = None
     
     preset: Optional[Union[str, FunCaptchaPreset]] = None
-    chrome_version: Optional[str] = "137"
+    chrome_version: Optional[str] = "140"
     blob: Optional[str] = "undefined"
     
     def __post_init__(self):
@@ -187,7 +186,7 @@ class ClientConfig:
     retry_delay: float = 1.0
     default_task_timeout: int = 120
     default_check_interval: int = 3
-    user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+    user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
 
 
 class FreeCapClient:
@@ -300,8 +299,6 @@ class FreeCapClient:
         elif captcha_type == CaptchaType.FUNCAPTCHA:
             if not task.preset:
                 raise FreeCapValidationException("preset is required for FunCaptcha")
-            if task.chrome_version not in ["136", "137"]:
-                raise FreeCapValidationException("chrome_version must be 136 or 137 for FunCaptcha")
     
     def _build_payload(self, task: CaptchaTask, captcha_type: CaptchaType) -> Dict[str, Any]:
         """Build API payload for specific captcha type."""
@@ -341,9 +338,6 @@ class FreeCapClient:
                 "chrome_version": task.chrome_version,
                 "blob": task.blob
             }
-        
-        elif captcha_type == CaptchaType.AURO_NETWORK:
-            payload_data = {}
         
         if task.proxy:
             payload_data["proxy"] = task.proxy
@@ -629,7 +623,7 @@ async def solve_hcaptcha(
 async def solve_funcaptcha(
     api_key: str,
     preset: Union[str, FunCaptchaPreset],
-    chrome_version: str = "137",
+    chrome_version: str = "140",
     blob: str = "undefined",
     proxy: Optional[str] = None,
     timeout: int = 120
@@ -640,7 +634,7 @@ async def solve_funcaptcha(
     Args:
         api_key: FreeCap API key
         preset: FunCaptcha preset
-        chrome_version: Chrome version (136 or 137)
+        chrome_version: Chrome version
         blob: Blob parameter (required for Roblox presets)
         proxy: Proxy string (optional)
         timeout: Timeout in seconds
