@@ -1,6 +1,6 @@
 {
   "name": "freecap-client",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A robust, production-ready async client for the FreeCap captcha solving service. Supports all captcha types including hCaptcha, FunCaptcha, Geetest, and more.",
   "main": "index.js",
   "types": "index.d.ts",
