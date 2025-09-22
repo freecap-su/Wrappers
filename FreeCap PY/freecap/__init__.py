@@ -240,7 +240,7 @@ class FreeCapClient:
         
         self._api_url = self._config.api_url.rstrip('/')
         self._headers = {
-            "X-API-Key": self._api_key,
+            "FreeCap-Key": self._api_key,
             "Content-Type": "application/json",
             "User-Agent": self._config.user_agent,
             "Accept": "application/json"
