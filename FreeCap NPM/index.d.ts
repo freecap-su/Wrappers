@@ -7,8 +7,7 @@ export declare enum CaptchaType {
     CAPTCHAFOX = "captchafox",
     GEETEST = "geetest",
     DISCORD_ID = "discordid",
-    FUNCAPTCHA = "funcaptcha",
-    AURO_NETWORK = "auronetwork"
+    FUNCAPTCHA = "funcaptcha"
 }
 
 export declare enum TaskStatus {
