@@ -21,7 +21,12 @@ public enum FunCaptchaPreset
     RobloxGroup,
     
     /// <summary>
-    /// Dropbox login preset
+    /// Roblox follow preset
     /// </summary>
-    DropboxLogin
+    RobloxRegister,
+    
+    /// <summary>
+    /// Github group preset
+    /// </summary>
+    GithubRegister,
 } 
