@@ -115,10 +115,6 @@ public class FreeCapClient : IDisposable, IAsyncDisposable
                     throw new FreeCapValidationException("preset is required for FunCaptcha");
                 break;
 
-            case CaptchaType.AuroNetwork:
-                // No specific validation required
-                break;
-
             default:
                 throw new ArgumentOutOfRangeException(nameof(captchaType), captchaType, null);
         }
@@ -164,10 +160,6 @@ public class FreeCapClient : IDisposable, IAsyncDisposable
                 payloadData["preset"] = task.Preset!.Value.ToApiString();
                 payloadData["chrome_version"] = task.ChromeVersion;
                 payloadData["blob"] = task.Blob;
-                break;
-
-            case CaptchaType.AuroNetwork:
-                // No specific payload data
                 break;
         }
 
