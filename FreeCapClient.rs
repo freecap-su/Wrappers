@@ -47,8 +47,6 @@ pub enum CaptchaType {
     DiscordId,
     #[serde(rename = "funcaptcha")]
     FunCaptcha,
-    #[serde(rename = "auronetwork")]
-    AuroNetwork,
 }
 
 impl fmt::Display for CaptchaType {
@@ -59,7 +57,6 @@ impl fmt::Display for CaptchaType {
             CaptchaType::Geetest => "geetest",
             CaptchaType::DiscordId => "discordid",
             CaptchaType::FunCaptcha => "funcaptcha",
-            CaptchaType::AuroNetwork => "auronetwork",
         };
         write!(f, "{}", s)
     }
@@ -102,7 +99,6 @@ impl fmt::Display for RiskType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FunCaptchaPreset {
-    SnapchatLogin,
     RobloxLogin,
     RobloxFollow,
     RobloxGroup,
@@ -112,11 +108,11 @@ pub enum FunCaptchaPreset {
 impl fmt::Display for FunCaptchaPreset {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            FunCaptchaPreset::SnapchatLogin => "snapchat_login",
             FunCaptchaPreset::RobloxLogin => "roblox_login",
             FunCaptchaPreset::RobloxFollow => "roblox_follow",
             FunCaptchaPreset::RobloxGroup => "roblox_group",
-            FunCaptchaPreset::DropboxLogin => "dropbox_login",
+            FunCaptchaPreset::RobloxRegister => "roblox_register",
+            FunCaptchaPreset::GithubRegister => "github_register",
         };
         write!(f, "{}", s)
     }
@@ -253,7 +249,7 @@ impl Default for ClientConfig {
             retry_delay: Duration::from_secs(1),
             default_task_timeout: Duration::from_secs(120),
             default_check_interval: Duration::from_secs(3),
-            user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36".to_string(),
+            user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36".to_string(),
         }
     }
 }
@@ -367,16 +363,6 @@ impl FreeCapClient {
                 if task.preset.is_none() {
                     return Err(FreeCapError::Validation("preset is required for FunCaptcha".to_string()));
                 }
-                if let Some(ref version) = task.chrome_version {
-                    if version != "136" && version != "137" {
-                        return Err(FreeCapError::Validation(
-                            "chrome_version must be 136 or 137 for FunCaptcha".to_string(),
-                        ));
-                    }
-                }
-            }
-            CaptchaType::AuroNetwork => {
-                // No specific validation required
             }
         }
         Ok(())
@@ -410,13 +396,10 @@ impl FreeCapClient {
             }
             CaptchaType::FunCaptcha => {
                 payload_data.insert("preset".to_string(), task.preset.as_ref().unwrap().to_string().into());
-                let chrome_version = task.chrome_version.as_deref().unwrap_or("137");
+                let chrome_version = task.chrome_version.as_deref().unwrap_or("140");
                 payload_data.insert("chrome_version".to_string(), chrome_version.into());
                 let blob = task.blob.as_deref().unwrap_or("undefined");
                 payload_data.insert("blob".to_string(), blob.into());
-            }
-            CaptchaType::AuroNetwork => {
-                // Empty payload for AuroNetwork
             }
         }
 
@@ -741,3 +724,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
