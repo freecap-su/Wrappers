@@ -5,7 +5,7 @@
  * Supports all captcha types including hCaptcha, FunCaptcha, Geetest, and more.
  * 
  * Author: FreeCap Client
- * Version: 1.0.0
+ * Version: 1.0.1
  * License: GPLv3
  */
 
