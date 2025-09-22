@@ -30,7 +30,8 @@ export declare enum FunCaptchaPreset {
     ROBLOX_LOGIN = "roblox_login",
     ROBLOX_FOLLOW = "roblox_follow",
     ROBLOX_GROUP = "roblox_group",
-    DROPBOX_LOGIN = "dropbox_login"
+    ROBLOX_REGISTER = "roblox_register",
+    GITHUB_REGISTER = "github_register"
 }
 
 export interface CaptchaTaskOptions {
